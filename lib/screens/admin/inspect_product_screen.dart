@@ -1,127 +1,215 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:shopsmart_users_en/models/product_model.dart';
-import 'package:shopsmart_users_en/providers/products_provider.dart';
-import 'package:shopsmart_users_en/widgets/products/product_widget.dart';
-import 'package:shopsmart_users_en/widgets/title_text.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:image_picker/image_picker.dart';
 
-class InspectProductsScreen extends StatefulWidget {
+class InspectProductScreen extends StatefulWidget {
   static const routeName = '/inspectProductsScreen';
 
   @override
-  _InspectProductsScreenState createState() => _InspectProductsScreenState();
+  _InspectProductScreenState createState() => _InspectProductScreenState();
 }
 
-class _InspectProductsScreenState extends State<InspectProductsScreen> {
-  late TextEditingController searchTextController;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    searchTextController = TextEditingController();
-    super.initState();
-    _fetchData();
-  }
-
-  Future<void> _fetchData() async {
-    try {
-      await Provider.of<ProductsProvider>(context, listen: false)
-          .fetchProducts();
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (error) {
-      print("Failed to load products: $error");
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    searchTextController.dispose();
-    super.dispose();
-  }
-
-  List<ProductModel> productListSearch = [];
-
-  void _onSearchSubmitted() {
-    final productsProvider =
-        Provider.of<ProductsProvider>(context, listen: false);
-    setState(() {
-      productListSearch = productsProvider.searchQuery(
-        searchText: searchTextController.text,
-        passedList: productsProvider.products,
-      );
-    });
-  }
-
-  void _clearSearch() {
-    setState(() {
-      searchTextController.clear();
-      productListSearch.clear(); // Clear the search results
-    });
-  }
+class _InspectProductScreenState extends State<InspectProductScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
+  File? _selectedImage;
 
   @override
   Widget build(BuildContext context) {
-    final productsProvider = Provider.of<ProductsProvider>(context);
-    List<ProductModel> productList = productsProvider.products;
-
     return Scaffold(
       appBar: AppBar(
-        title: const TitlesTextWidget(label: "Data Barang"),
+        title: const Text('Inspect Products'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: searchTextController,
-                    decoration: InputDecoration(
-                      hintText: "Search",
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: GestureDetector(
-                        onTap: _clearSearch,
-                        child: const Icon(
-                          Icons.clear,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                    onSubmitted: (value) {
-                      _onSearchSubmitted();
-                      FocusScope.of(context).unfocus(); // Hide keyboard
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: GridView.builder(
-                      itemCount: searchTextController.text.isNotEmpty
-                          ? productListSearch.length
-                          : productList.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 2 / 3,
-                      ),
-                      itemBuilder: (context, index) {
-                        return ProductWidget(
-                          productId: searchTextController.text.isNotEmpty
-                              ? productListSearch[index].productId
-                              : productList[index].productId,
-                        );
+      body: StreamBuilder(
+        stream: _firestore.collection('dataBarang').snapshots(),
+        builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return const Center(child: Text('Error loading products'));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No products available'));
+          }
+
+          final products = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              return ListTile(
+                title: Text(product['product_name']),
+                subtitle: Text('Stock: ${product['product_stok']}'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () {
+                        _showEditProductDialog(context, product);
                       },
                     ),
-                  ),
-                ],
-              ),
-            ),
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () async {
+                        await _deleteProduct(product.id);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
+  }
+
+  Future<void> _deleteProduct(String productId) async {
+    try {
+      await _firestore.collection('dataBarang').doc(productId).delete();
+      Fluttertoast.showToast(msg: 'Product deleted successfully');
+    } catch (error) {
+      Fluttertoast.showToast(msg: 'Failed to delete product: $error');
+    }
+  }
+
+  void _showEditProductDialog(BuildContext context, DocumentSnapshot product) {
+    final TextEditingController _nameController =
+        TextEditingController(text: product['product_name']);
+    final TextEditingController _stockController =
+        TextEditingController(text: product['product_stok'].toString());
+    final TextEditingController _descriptionController =
+        TextEditingController(text: product['product_deskripsi']);
+    String? _currentImage = product['product_image'];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit Product'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    final pickedFile =
+                        await _picker.pickImage(source: ImageSource.gallery);
+                    if (pickedFile != null) {
+                      setState(() {
+                        _selectedImage = File(pickedFile.path);
+                      });
+                    }
+                  },
+                  child: _selectedImage != null
+                      ? Image.file(_selectedImage!, height: 150, width: 150)
+                      : _currentImage != null
+                          ? Image.network(_currentImage,
+                              height: 150, width: 150)
+                          : Container(
+                              height: 150,
+                              width: 150,
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image, size: 50),
+                            ),
+                ),
+                const SizedBox(
+                    height: 20), // Add space between image and fields
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Product Name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: TextField(
+                    controller: _stockController,
+                    decoration: const InputDecoration(
+                      labelText: 'Stock',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: TextField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Product Description',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () async {
+                await _updateProduct(
+                  product.id,
+                  _nameController.text,
+                  int.parse(_stockController.text),
+                  _descriptionController.text,
+                );
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _updateProduct(String productId, String newName, int newStock,
+      String newDescription) async {
+    try {
+      String? imageUrl;
+
+      if (_selectedImage != null) {
+        // Upload new image if selected
+        String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('product_images')
+            .child(fileName);
+        await storageRef.putFile(_selectedImage!);
+        imageUrl = await storageRef.getDownloadURL();
+      }
+
+      // Update Firestore document
+      await _firestore.collection('dataBarang').doc(productId).update({
+        'product_name': newName,
+        'product_stok': newStock,
+        'product_deskripsi': newDescription,
+        if (imageUrl != null) 'product_image': imageUrl,
+      });
+
+      Fluttertoast.showToast(msg: 'Product updated successfully');
+    } catch (error) {
+      Fluttertoast.showToast(msg: 'Failed to update product: $error');
+    }
   }
 }

@@ -27,16 +27,18 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   bool obscureText = true;
   late final TextEditingController _nameController,
+      _prodiController, // Controller for Prodi
       _emailController,
       _passwordController,
       _repeatPasswordController,
-      _phoneController; // Add phone controller
+      _phoneController;
 
   late final FocusNode _nameFocusNode,
+      _prodiFocusNode, // Focus node for Prodi
       _emailFocusNode,
       _passwordFocusNode,
       _repeatPasswordFocusNode,
-      _phoneFocusNode; // Add phone focus node
+      _phoneFocusNode;
 
   final _formkey = GlobalKey<FormState>();
   XFile? _pickedImage;
@@ -47,16 +49,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     _nameController = TextEditingController();
+    _prodiController = TextEditingController(); // Initialize Prodi controller
     _emailController = TextEditingController();
     _passwordController = TextEditingController();
     _repeatPasswordController = TextEditingController();
-    _phoneController = TextEditingController(); // Initialize phone controller
-    // Initialize Focus Nodes
+    _phoneController = TextEditingController();
     _nameFocusNode = FocusNode();
+    _prodiFocusNode = FocusNode(); // Initialize Prodi focus node
     _emailFocusNode = FocusNode();
     _passwordFocusNode = FocusNode();
     _repeatPasswordFocusNode = FocusNode();
-    _phoneFocusNode = FocusNode(); // Initialize phone focus node
+    _phoneFocusNode = FocusNode();
     super.initState();
   }
 
@@ -64,16 +67,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     if (mounted) {
       _nameController.dispose();
+      _prodiController.dispose(); // Dispose Prodi controller
       _emailController.dispose();
       _passwordController.dispose();
       _repeatPasswordController.dispose();
-      _phoneController.dispose(); // Dispose of phone controller
-      // Dispose Focus Nodes
+      _phoneController.dispose();
       _nameFocusNode.dispose();
+      _prodiFocusNode.dispose(); // Dispose Prodi focus node
       _emailFocusNode.dispose();
       _passwordFocusNode.dispose();
       _repeatPasswordFocusNode.dispose();
-      _phoneFocusNode.dispose(); // Dispose of phone focus node
+      _phoneFocusNode.dispose();
     }
     super.dispose();
   }
@@ -115,11 +119,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             .set({
           'user_id': uid,
           'user_name': _nameController.text,
+          'prodi': _prodiController.text.trim(), // Add Prodi field
           'user_image': userImageUrl,
           'email': _emailController.text.toLowerCase(),
           'createdAt': Timestamp.now(),
           'role': 'user', // Default role to 'user'
-          'no_hp': _phoneController.text.trim(), // Save phone number
+          'no_hp': _phoneController.text.trim(),
         });
 
         Fluttertoast.showToast(
@@ -197,8 +202,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TitlesTextWidget(label: "Welcome!"),
-                          SubtitleTextWidget(label: "Register to get started"),
+                          TitlesTextWidget(label: "Selamat Datang!"),
+                          SubtitleTextWidget(
+                              label: "Buat Akun Terlebih Dahulu"),
                         ],
                       )),
                   const SizedBox(
@@ -228,17 +234,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           textInputAction: TextInputAction.next,
                           keyboardType: TextInputType.name,
                           decoration: const InputDecoration(
-                            hintText: 'Full Name',
+                            hintText: 'Nama Lengkap',
                             prefixIcon: Icon(
                               Icons.person,
                             ),
                           ),
                           onFieldSubmitted: (value) {
-                            FocusScope.of(context)
-                                .requestFocus(_emailFocusNode);
+                            FocusScope.of(context).requestFocus(
+                                _prodiFocusNode); // Focus on Prodi next
                           },
                           validator: (value) {
                             return MyValidators.displayNamevalidator(value);
+                          },
+                        ),
+                        const SizedBox(height: 16.0),
+                        TextFormField(
+                          controller: _prodiController, // Set Prodi controller
+                          focusNode: _prodiFocusNode, // Set Prodi focus node
+                          textInputAction: TextInputAction.next,
+                          keyboardType: TextInputType.text,
+                          decoration: const InputDecoration(
+                            hintText: 'Prodi', // Hint text for the new field
+                            prefixIcon: Icon(
+                              Icons.school,
+                            ),
+                          ),
+                          onFieldSubmitted: (value) {
+                            FocusScope.of(context).requestFocus(
+                                _emailFocusNode); // Focus on Email next
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your Prodi';
+                            }
+                            return null;
                           },
                         ),
                         const SizedBox(
@@ -250,7 +279,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           textInputAction: TextInputAction.next,
                           keyboardType: TextInputType.emailAddress,
                           decoration: const InputDecoration(
-                            hintText: "Email address",
+                            hintText: "Alamat Email",
                             prefixIcon: Icon(
                               IconlyLight.message,
                             ),

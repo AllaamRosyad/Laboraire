@@ -91,6 +91,8 @@ flutter:
     - assets/images/bag/
     - assets/images/banners/
     - assets/images/categories/
+    - assets/images/background_login.png
+    - assets/images/logo.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

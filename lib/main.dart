@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Tambahkan ini
 import 'package:shopsmart_users_en/screens/admin/add_product_screen.dart';
 import 'package:shopsmart_users_en/screens/admin/admin_screen.dart';
 import 'package:shopsmart_users_en/root_screen.dart';
@@ -37,16 +38,20 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   Future<String> getInitialScreen() async {
-    // Retrieve user role from SharedPreferences
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? role = prefs.getString('userRole');
+    final FirebaseAuth auth = FirebaseAuth.instance;
+    User? user = auth.currentUser;
 
-    // Determine initial route based on role
-    if (role != null && role == 'admin') {
-      return AdminScreen.routeName;
-    } else if (role != null && role == 'user') {
-      return RootScreen.routeName;
+    // Jika pengguna sudah login
+    if (user != null) {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? role = prefs.getString('userRole');
+      if (role == 'admin') {
+        return AdminScreen.routeName;
+      } else {
+        return RootScreen.routeName;
+      }
     } else {
+      // Jika pengguna belum login
       return LoginScreen.routeName;
     }
   }
@@ -57,7 +62,6 @@ class MyApp extends StatelessWidget {
       future: getInitialScreen(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show loading indicator while waiting for the role check
           return const MaterialApp(
             home: Scaffold(
               body: Center(child: CircularProgressIndicator()),
@@ -65,7 +69,6 @@ class MyApp extends StatelessWidget {
           );
         }
 
-        // Build the main application with providers
         return MultiProvider(
           providers: [
             ChangeNotifierProvider(create: (_) => ThemeProvider()),
@@ -84,7 +87,7 @@ class MyApp extends StatelessWidget {
                   isDarkTheme: themeProvider.getIsDarkTheme,
                   context: context,
                 ),
-                initialRoute: snapshot.data,
+                initialRoute: snapshot.data ?? LoginScreen.routeName,
                 routes: {
                   RootScreen.routeName: (context) => const RootScreen(),
                   AdminScreen.routeName: (context) => AdminScreen(),
@@ -103,8 +106,8 @@ class MyApp extends StatelessWidget {
                   ReturnItemsScreen.routeName: (context) => ReturnItemsScreen(),
                   AddProductScreen.routeName: (context) => AddProductScreen(),
                   AllProductsScreen.routeName: (context) => AllProductsScreen(),
-                  InspectProductsScreen.routeName: (context) =>
-                      InspectProductsScreen(),
+                  InspectProductScreen.routeName: (context) =>
+                      InspectProductScreen(),
                   ReturnManagementScreen.routeName: (context) =>
                       ReturnManagementScreen(),
                   HistoryScreen.routeName: (context) => HistoryScreen(),

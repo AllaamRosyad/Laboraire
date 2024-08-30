@@ -8,7 +8,8 @@ class AppConstants {
 
   static List<String> bannersImages = [
     AssetsManager.banner1,
-    AssetsManager.banner2
+    // AssetsManager.banner2,
+    AssetsManager.banner3,
   ];
 
   static List<CategoriesModel> categoriesList = [

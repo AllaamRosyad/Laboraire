@@ -449,14 +449,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                         );
                       },
                     ),
-                    CustomListTile(
-                      text: "Viewed recently",
-                      imagePath: AssetsManager.recent,
-                      function: () {
-                        Navigator.pushNamed(
-                            context, ViewedRecentlyScreen.routName);
-                      },
-                    ),
+                    // CustomListTile(
+                    //   text: "Viewed recently",
+                    //   imagePath: AssetsManager.recent,
+                    //   function: () {
+                    //     Navigator.pushNamed(
+                    //         context, ViewedRecentlyScreen.routName);
+                    //   },
+                    // ),
                     const Divider(
                       thickness: 1,
                     ),
